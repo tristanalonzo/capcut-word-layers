@@ -83,7 +83,7 @@ opened" row and record the result here.
 - **Unlayer restores the end times saved at layering.** If a clip was
   trimmed by hand afterwards, unlayer undoes that trim.
 - **Words are stacked top to bottom only.** Right-to-left or side-by-side
-  layouts need manual placement.
+  layouts need manual placement. Planned: section 6, item 2.
 
 ### Styles
 
@@ -114,7 +114,7 @@ opened" row and record the result here.
 - **After an undo back to the saved state the project still shows as
   unsaved.**
 - **Dragging moves one clip at a time.** Several clips can only be moved
-  together with the arrow keys.
+  together with the arrow keys. Planned: section 6, item 1.
 - **Two windows on the same project** will overwrite each other. Nothing
   prevents opening a second one.
 - **Preview gaps:** no video frame, no curve, no letter spacing, no
@@ -191,7 +191,55 @@ opened" row and record the result here.
 - **The name includes "CapCut".** That is a trademark; a neutral name avoids
   takedown trouble.
 
-## 6. Improvements, roughly in order of value
+## 6. Requested changes
+
+Reported after using the tool on real projects (2026-11-10). These need
+action before the items in section 7. All are window changes (`ui.html`,
+plus `wordlayers.pyw` for the icon) except where noted.
+
+1. **Move every selected clip when dragging.** In the timeline, dragging a
+   clip moves only the clip under the cursor, even when several are
+   selected (`set_time` is sent for one id). Dragging should move the whole
+   selection by the same time offset, keeping their spacing, and move them
+   between tracks together. Needs an engine call that moves several clips
+   in one undo step, with overlap checks for each.
+2. **Horizontal word spacing when layering.** Auto offset stacks group words
+   on separate lines (`_line_step`, `_layout_group` in `engine.py`). "Side
+   step" only slants that stack; there is no way to place words side by
+   side. Add a direction setting (vertical, horizontal) and a word gap that
+   uses each word's width, not the first word's font size.
+3. **Collapsible, less cramped side panel.** The right panel is one long
+   312px column of sections (Actions, Layering, Style, Selected clip, Keys
+   and mouse). Each section should collapse like CapCut's panels, remember
+   its open state, and have more room between controls.
+4. **CapCut-style cut and trim keys.**
+   - `C`: cut the selected clips at the playhead (a new engine operation;
+     there is no plain cut yet, only "Split into words").
+   - `Q`: trim off everything left of the playhead in the selected clips.
+   - `W`: trim off everything right of the playhead in the selected clips.
+
+   Add them to the "Keys and mouse" list. `S` (split into words) and
+   `Ctrl+Shift+C` (copy style) stay as they are.
+5. **Resizable panels.** The preview, timeline and side panel have fixed
+   sizes (`grid-template-columns:1fr 312px`, timeline row `300px`). Add drag
+   handles between them, remember the sizes, and make the timeline the
+   largest area by default.
+6. **Icons.** Buttons are text only (Play, −, +, Fit, the action list, the
+   style toggles). Add simple inline SVG icons with the text kept as a
+   tooltip or label, so tools are easier to find.
+7. **Playback bar.** There is only a Play button and a time readout. Add a
+   scrub slider under the preview with current time and total length, plus
+   jump to start and end, frame step buttons, and keep it in sync with the
+   playhead.
+8. **App icon.** The page sets an empty favicon (`<link rel="icon"
+   href="data:,">`), so the app window and taskbar show a blank or browser
+   icon. Add an icon to the page and to the launcher shortcut.
+9. **Screenshots in the README.** The repository has no images. Add a
+   screenshot of the main window and a short before/after of a layered
+   group. Take them from a made-up or throwaway project so no real paths,
+   names or device data show.
+
+## 7. Improvements, roughly in order of value
 
 1. **Use real word timings** when a clip has them (auto captions), instead
    of dividing time evenly.
@@ -205,7 +253,8 @@ opened" row and record the result here.
    colour automatically.
 6. **Layering presets** that save a whole set of settings and styles by
    name.
-7. **Multi-clip drag, ripple move and visible snap guides** in the timeline.
+7. **Ripple move and visible snap guides** in the timeline (multi-clip drag
+   is in section 6).
 8. **Backup pruning** (keep the last N) and a backup list to restore from.
 9. **Autosave of unsaved edits** to a recovery file.
 10. **Curve and letter spacing in the preview;** a still video frame as the
