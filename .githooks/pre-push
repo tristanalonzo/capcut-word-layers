@@ -1,0 +1,21 @@
+#!/bin/sh
+# Last check before anything leaves this computer: no pushed commit may have
+# an AI tool as author or committer, or mention one in its message.
+pattern='claude|anthropic|copilot|openai|\[bot\]|🤖'
+zero=$(git hash-object --stdin </dev/null | tr '0-9a-f' '0')
+bad=0
+while read -r local_ref local_sha remote_ref remote_sha; do
+    [ "$local_sha" = "$zero" ] && continue
+    if [ "$remote_sha" = "$zero" ]; then
+        range="$local_sha --not --remotes"
+    else
+        range="$remote_sha..$local_sha"
+    fi
+    found=$(git log --format='%h  author: %an <%ae>  committer: %cn <%ce>%n%B' $range | grep -iE "$pattern")
+    if [ -n "$found" ]; then
+        echo "pre-push: refusing to push $local_ref. These lines credit or mention an AI tool:" >&2
+        echo "$found" >&2
+        bad=1
+    fi
+done
+exit $bad

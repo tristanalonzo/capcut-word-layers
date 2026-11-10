@@ -1,0 +1,7 @@
+#!/bin/sh
+# Refuses commits whose author or committer is not a person.
+who="$(git var GIT_AUTHOR_IDENT) $(git var GIT_COMMITTER_IDENT)"
+if printf '%s' "$who" | grep -qiE 'claude|anthropic|copilot|openai|\[bot\]'; then
+    echo "pre-commit: the author or committer is an AI tool or bot. Use your own git identity." >&2
+    exit 1
+fi

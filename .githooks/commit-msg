@@ -1,0 +1,8 @@
+#!/bin/sh
+# Refuses commit messages that credit or mention an AI tool.
+# Turn on once per clone:  git config core.hooksPath .githooks
+pattern='claude|anthropic|co-authored-by:.*(copilot|chatgpt|openai|gemini|cursor|kiro|devin|\[bot\])|🤖'
+if sed -e '/>8 ---/,$d' -e '/^#/d' "$1" | grep -qiE "$pattern"; then
+    echo "commit-msg: this message credits or mentions an AI tool. Rewrite it." >&2
+    exit 1
+fi

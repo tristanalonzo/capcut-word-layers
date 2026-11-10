@@ -1,0 +1,799 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>CapCut Word Layers</title>
+<link rel="icon" href="data:,">
+<style>
+:root{
+  --bg:#18181a; --panel:#202023; --panel2:#27272b; --line:#34343a; --text:#e6e6e8; --dim:#8d8d96;
+  --accent:#27c4d2; --clip:#a04b3a; --clip-hi:#bb5a46; --danger:#e5605a; --ok:#57c98a;
+  --gut:54px; --row:38px;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--text);font:13px/1.4 "Segoe UI",system-ui,sans-serif;
+  display:grid;grid-template-rows:46px 1fr;overflow:hidden;user-select:none}
+button,select,input{font:inherit;color:inherit}
+button{background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:5px 10px;cursor:pointer}
+button:hover:not(:disabled){border-color:#55555e;background:#2e2e33}
+button:disabled{opacity:.4;cursor:default}
+button.primary{background:var(--accent);border-color:var(--accent);color:#06282b;font-weight:600}
+button.primary:hover:not(:disabled){background:#4bd3df;border-color:#4bd3df}
+select,input[type=text],input[type=number]{background:#141416;border:1px solid var(--line);border-radius:6px;padding:4px 7px;min-width:0}
+input[type=number]{width:64px}
+input[type=color]{width:34px;height:26px;padding:0;border:1px solid var(--line);border-radius:6px;background:none}
+input[type=range]{flex:1;min-width:0;accent-color:var(--accent)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+kbd{background:#141416;border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;padding:0 5px;font:11px "Segoe UI",sans-serif;color:var(--dim);white-space:nowrap}
+
+header{display:flex;align-items:center;gap:8px;padding:0 12px;background:var(--panel);border-bottom:1px solid var(--line)}
+header h1{font-size:14px;margin:0 6px 0 0;font-weight:600;white-space:nowrap}
+header select{max-width:260px}
+#status{margin-left:auto;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#status.dirty{color:#e8b45a}
+
+main{display:grid;grid-template-columns:1fr 312px;min-height:0}
+#left{display:grid;grid-template-rows:1fr 300px;min-width:0;min-height:0}
+#stage{position:relative;min-height:0;display:flex;align-items:center;justify-content:center;background:#111113;padding:14px}
+#preview{background:#000;box-shadow:0 0 0 1px var(--line);cursor:default;touch-action:none}
+#stage .note{position:absolute;left:14px;bottom:8px;color:var(--dim);font-size:11px}
+#time{position:absolute;right:14px;bottom:8px;color:var(--dim);font:12px Consolas,monospace}
+
+#tlwrap{border-top:1px solid var(--line);display:grid;grid-template-rows:30px 1fr;min-height:0;background:var(--panel)}
+#tlbar{display:flex;align-items:center;gap:6px;padding:0 10px;border-bottom:1px solid var(--line);color:var(--dim)}
+#tlbar button{padding:2px 8px}
+#tl{overflow:auto;position:relative;min-height:0;background:#1c1c1f}
+#inner{position:relative;min-height:100%}
+#ruler{position:sticky;top:0;height:22px;background:var(--panel);border-bottom:1px solid var(--line);z-index:4;cursor:ew-resize}
+#ruler span{position:absolute;top:3px;font-size:10px;color:var(--dim);padding-left:4px;border-left:1px solid #4a4a52;height:19px;pointer-events:none}
+#newrow{height:16px;margin-left:var(--gut);border-bottom:1px dashed transparent;color:transparent;font-size:10px;padding-left:8px;line-height:16px}
+body.dragging #newrow{border-color:#4a4a52;color:var(--dim)}
+#newrow.hot{background:rgba(39,196,210,.18);color:var(--text)}
+.track{position:relative;height:var(--row);border-bottom:1px solid #26262a}
+.track.hot{background:rgba(39,196,210,.09)}
+.th{position:sticky;left:0;width:var(--gut);height:100%;background:var(--panel);border-right:1px solid var(--line);z-index:3;
+  display:flex;align-items:center;justify-content:center;color:var(--dim);font:600 13px Georgia,serif;letter-spacing:1px}
+.clip{position:absolute;top:4px;height:calc(var(--row) - 9px);background:var(--clip);border-radius:5px;overflow:hidden;
+  white-space:nowrap;padding:0 8px;line-height:calc(var(--row) - 9px);font-size:12px;cursor:grab;border:1.5px solid transparent;touch-action:none}
+.clip:hover{background:var(--clip-hi)}
+.clip.sel{border-color:#fff;z-index:2}
+.clip .lab{background:rgba(255,255,255,.16);border-radius:3px;padding:1px 5px;pointer-events:none}
+.clip .gdot{position:absolute;left:0;top:0;bottom:0;width:3px;pointer-events:none}
+.clip .hl,.clip .hr{position:absolute;top:0;bottom:0;width:7px;cursor:ew-resize}
+.clip .hl{left:0}.clip .hr{right:0}
+/* locked: striped, dimmer, with a padlock */
+.clip.locked{background:repeating-linear-gradient(135deg,#5b4640 0 7px,#4a3833 7px 14px);color:#d9c9c4}
+.clip.locked .lab{background:rgba(0,0,0,.35)}
+.clip.locked::after{content:"";position:absolute;right:6px;top:50%;width:13px;height:13px;transform:translateY(-50%);
+  background:#f0c66b;-webkit-mask:var(--lock) center/contain no-repeat;mask:var(--lock) center/contain no-repeat;pointer-events:none}
+:root{--lock:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M4 7V5a4 4 0 0 1 8 0v2h1v8H3V7h1zm2 0h4V5a2 2 0 0 0-4 0v2z'/%3E%3C/svg%3E")}
+#playhead{position:absolute;top:0;bottom:0;width:1px;background:#fff;z-index:5;pointer-events:none}
+#playhead::before{content:"";position:absolute;top:0;left:-5px;border:5px solid transparent;border-top:8px solid #fff}
+#marquee{position:absolute;border:1px solid var(--accent);background:rgba(39,196,210,.12);z-index:6;pointer-events:none;display:none}
+
+aside{background:var(--panel);border-left:1px solid var(--line);overflow:auto;padding:0 0 20px}
+section{padding:12px 14px;border-bottom:1px solid var(--line)}
+section h2{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--dim);margin:0 0 9px;font-weight:600}
+.row{display:flex;align-items:center;gap:8px;margin:6px 0;min-height:26px}
+.row>label:first-child{width:92px;flex:none;color:#c3c3ca}
+.row output{width:34px;text-align:right;color:var(--dim);font-variant-numeric:tabular-nums}
+.row select,.row input[type=text]{flex:1}
+.acts{display:grid;gap:5px}
+.acts button{display:flex;justify-content:space-between;align-items:center;text-align:left}
+.hint{color:var(--dim);font-size:11.5px;margin:8px 0 0}
+.sub{margin-left:0;padding-left:10px;border-left:2px solid var(--line)}
+.sub.off{display:none}
+fieldset{border:0;padding:0;margin:0;min-width:0}
+fieldset:disabled{opacity:.45}
+.badge{display:inline-block;background:#3a3320;color:#f0c66b;border-radius:4px;padding:0 6px;font-size:11px}
+details summary{cursor:pointer;color:var(--dim);margin-top:8px}
+.keys{display:grid;grid-template-columns:auto 1fr;gap:5px 10px;color:#c3c3ca;font-size:12px}
+
+#toasts{position:fixed;left:50%;bottom:316px;transform:translateX(-50%);display:grid;gap:6px;z-index:50;pointer-events:none}
+.toast{background:#2d2d33;border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:6px;padding:8px 14px;max-width:560px;box-shadow:0 6px 20px rgba(0,0,0,.4)}
+.toast.err{border-left-color:var(--danger)}
+.toast.ok{border-left-color:var(--ok)}
+#picker{position:fixed;inset:0;background:rgba(10,10,12,.82);display:none;align-items:center;justify-content:center;z-index:40}
+#picker.on{display:flex}
+#picker .box{background:var(--panel);border:1px solid var(--line);border-radius:10px;width:520px;max-height:80vh;display:flex;flex-direction:column;padding:18px}
+#picker h2{margin:0 0 4px;font-size:16px}
+#plist{overflow:auto;margin:12px 0;display:grid;gap:4px}
+#plist button{text-align:left;display:flex;justify-content:space-between}
+#plist small{color:var(--dim)}
+</style>
+</head>
+<body>
+<header>
+  <h1>Word Layers</h1>
+  <button id="b-open" title="Choose a project">Open…</button>
+  <select id="docsel" hidden title="Timeline"></select>
+  <button id="b-save" class="primary" title="Save to the CapCut project (Ctrl+S)">Save</button>
+  <button id="b-undo" title="Undo (Ctrl+Z)">Undo</button>
+  <button id="b-redo" title="Redo (Ctrl+Y)">Redo</button>
+  <button id="b-restore" title="Put back the files from before the last save">Restore backup</button>
+  <button id="b-reload" title="Read the project from disk again">Reload</button>
+  <div id="status">No project open</div>
+</header>
+<main>
+  <div id="left">
+    <div id="stage">
+      <canvas id="preview"></canvas>
+      <div class="note">Text preview only. Sizes and effects are approximate.</div>
+      <div id="time"></div>
+    </div>
+    <div id="tlwrap">
+      <div id="tlbar">
+        <button id="b-play" title="Play (Space)">Play</button>
+        <button id="z-out" title="Zoom out (-)">−</button>
+        <button id="z-in" title="Zoom in (+)">+</button>
+        <button id="z-fit" title="Fit the timeline to the window">Fit</button>
+        <span id="selinfo"></span>
+      </div>
+      <div id="tl"><div id="inner">
+        <div id="ruler"></div>
+        <div id="newrow">+ new track</div>
+        <div id="tracks"></div>
+        <div id="playhead"></div>
+        <div id="marquee"></div>
+      </div></div>
+    </div>
+  </div>
+  <aside>
+    <section>
+      <h2>Actions</h2>
+      <div class="acts">
+        <button data-act="split">Split into words <kbd>S</kbd></button>
+        <button data-act="layer">Layer short words <kbd>G</kbd></button>
+        <button data-act="unlayer">Unlayer <kbd>U</kbd></button>
+        <button data-act="lock">Lock / unlock <kbd>L</kbd></button>
+        <button data-act="delete">Delete <kbd>Del</kbd></button>
+      </div>
+      <p class="hint">Actions use the selected clips, or every clip when nothing is selected. Locked clips are skipped.</p>
+    </section>
+    <section>
+      <h2>Layering</h2>
+      <div class="row"><label for="s-short">Short word</label><input type="number" id="s-short" min="1" max="20"> <span>letters or fewer</span></div>
+      <div class="row"><label for="s-max">Group size</label><input type="number" id="s-max" min="2" max="8"> <span>words at most</span></div>
+      <div class="row"><label for="s-auto">Auto offset</label><input type="checkbox" id="s-auto"> <span>stack words on separate lines</span></div>
+      <div class="row"><label for="s-gap">Line gap</label><input type="range" id="s-gap" min="0" max="3" step="0.05"><output id="o-gap"></output></div>
+      <div class="row"><label for="s-shift">Side step</label><input type="range" id="s-shift" min="-2" max="2" step="0.05"><output id="o-shift"></output></div>
+      <details><summary>Preview calibration</summary>
+        <div class="row"><label for="s-scale">Text scale</label><input type="number" id="s-scale" min="0.5" max="30" step="0.1"></div>
+        <p class="hint">If text looks bigger or smaller here than in CapCut, change this until they match. It also sets how far apart stacked lines are.</p>
+      </details>
+    </section>
+    <section>
+      <h2>Style <span id="st-n" style="text-transform:none;letter-spacing:0"></span></h2>
+      <fieldset id="st">
+        <div class="row"><label for="st-font">Font</label><select id="st-font"></select></div>
+        <div class="row"><label for="st-size">Size</label><input type="number" id="st-size" min="1" max="500" step="1">
+          <label for="st-color" style="margin-left:auto">Color</label><input type="color" id="st-color"></div>
+        <div class="row"><label for="st-stroke">Stroke</label><input type="checkbox" id="st-stroke"></div>
+        <div class="sub" id="sub-stroke">
+          <div class="row"><label for="st-scolor">Color</label><input type="color" id="st-scolor"></div>
+          <div class="row"><label for="st-swidth">Thickness</label><input type="range" id="st-swidth" min="0" max="100"><output id="o-swidth"></output></div>
+        </div>
+        <div class="row"><label for="st-shadow">Shadow</label><input type="checkbox" id="st-shadow"></div>
+        <div class="sub" id="sub-shadow">
+          <div class="row"><label for="st-hcolor">Color</label><input type="color" id="st-hcolor"></div>
+          <div class="row"><label for="st-halpha">Opacity</label><input type="range" id="st-halpha" min="0" max="100"><output id="o-halpha"></output></div>
+          <div class="row"><label for="st-hblur">Blur</label><input type="range" id="st-hblur" min="0" max="100"><output id="o-hblur"></output></div>
+          <div class="row"><label for="st-hdist">Distance</label><input type="range" id="st-hdist" min="0" max="100"><output id="o-hdist"></output></div>
+          <div class="row"><label for="st-hangle">Angle</label><input type="range" id="st-hangle" min="-180" max="180"><output id="o-hangle"></output></div>
+        </div>
+        <div class="row"><label for="st-glow">Glow</label><input type="checkbox" id="st-glow"><span class="hint" id="glow-name" style="margin:0"></span></div>
+        <div class="sub" id="sub-glow">
+          <div class="row"><label for="st-gcolor">Color</label><input type="color" id="st-gcolor"></div>
+          <div class="row"><label for="st-gstr">Intensity</label><input type="range" id="st-gstr" min="0" max="100"><output id="o-gstr"></output></div>
+          <div class="row"><label for="st-grange">Range</label><input type="range" id="st-grange" min="0" max="100"><output id="o-grange"></output></div>
+        </div>
+        <div class="row"><label for="st-bg">Background</label><input type="checkbox" id="st-bg"></div>
+        <div class="sub" id="sub-bg">
+          <div class="row"><label for="st-bcolor">Color</label><input type="color" id="st-bcolor"></div>
+          <div class="row"><label for="st-balpha">Opacity</label><input type="range" id="st-balpha" min="0" max="100"><output id="o-balpha"></output></div>
+          <div class="row"><label for="st-bradius">Rounded</label><input type="range" id="st-bradius" min="0" max="100"><output id="o-bradius"></output></div>
+        </div>
+        <div class="row"><label for="st-curve">Curve</label><input type="checkbox" id="st-curve"><span class="hint" style="margin:0">not shown in the preview</span></div>
+        <div class="sub" id="sub-curve">
+          <div class="row"><label for="st-cangle">Strength</label><input type="range" id="st-cangle" min="-360" max="360"><output id="o-cangle"></output></div>
+        </div>
+        <div class="row" id="st-extra" hidden><span class="badge">has other effects</span><span class="hint" style="margin:0">kept as they are, not shown in the preview</span></div>
+      </fieldset>
+      <div class="acts" style="margin-top:10px">
+        <button data-act="copy_style">Copy style <kbd>Ctrl+Shift+C</kbd></button>
+        <button data-act="paste_style">Paste style <kbd>Ctrl+Shift+V</kbd></button>
+      </div>
+      <p class="hint">Paste style copies a clip's whole look, including effects that have no control here.</p>
+    </section>
+    <section>
+      <h2>Selected clip</h2>
+      <fieldset id="one">
+        <div class="row"><label for="c-text">Text</label><input type="text" id="c-text"></div>
+        <div class="row"><label for="c-x">Position</label>X <input type="number" id="c-x" step="0.01"> Y <input type="number" id="c-y" step="0.01"></div>
+        <p class="hint" id="c-info"></p>
+      </fieldset>
+    </section>
+    <section>
+      <h2>Keys and mouse</h2>
+      <div class="keys">
+        <kbd>Drag clip</kbd><span>move in time or to another track</span>
+        <kbd>Drag clip edge</kbd><span>trim</span>
+        <kbd>Drag in preview</kbd><span>move text on screen</span>
+        <kbd>← →</kbd><span>move selection one frame (Shift: five)</span>
+        <kbd>Alt + arrows</kbd><span>nudge text on screen</span>
+        <kbd>Ctrl+A</kbd><span>select all</span>
+        <kbd>Ctrl/Shift+click</kbd><span>add to selection</span>
+        <kbd>Space</kbd><span>play</span>
+        <kbd>Ctrl+wheel</kbd><span>zoom the timeline</span>
+        <kbd>Ctrl+Z / Y</kbd><span>undo / redo</span>
+        <kbd>Ctrl+S</kbd><span>save</span>
+      </div>
+    </section>
+  </aside>
+</main>
+<div id="toasts"></div>
+<div id="picker"><div class="box">
+  <h2>Open a CapCut project</h2>
+  <div class="hint" style="margin:0">Close CapCut before you save changes here.</div>
+  <div id="plist"></div>
+  <div class="row"><input type="text" id="ppath" placeholder="or paste a project folder path"><button id="pgo">Open</button><button id="pcancel">Cancel</button></div>
+</div></div>
+
+<script>
+"use strict";
+const TOKEN = "__TOKEN__";
+const $ = id => document.getElementById(id);
+const GUT = 54;
+let V = null;                 // current view from the engine
+let sel = new Set();          // selected clip ids
+let playhead = 0;             // microseconds
+let pps = 220;                // timeline pixels per second
+let playing = false, fontsLoaded = false, fontList = [];
+let dragOff = null;           // live preview offset while dragging text {dx,dy}
+const fontFaces = new Map();  // font path -> css family (or null while loading)
+
+// ------------------------------------------------------------ talking to the engine
+async function api(op, args = {}, quiet = false) {
+  let r;
+  try {
+    const res = await fetch("/api", {method: "POST", headers: {"X-Token": TOKEN, "Content-Type": "application/json"},
+                                     body: JSON.stringify({op, args})});
+    r = await res.json();
+  } catch (e) {
+    if (!quiet) toast("Lost contact with the app. Close this window and start it again.", "err");
+    return {ok: false};
+  }
+  if (r.view !== undefined && r.view !== null) setView(r.view);
+  if (!r.ok && !quiet) toast(r.error, "err");
+  return r;
+}
+function toast(msg, kind = "") {
+  const d = document.createElement("div");
+  d.className = "toast " + kind; d.textContent = msg;
+  $("toasts").append(d);
+  setTimeout(() => d.remove(), kind === "err" ? 6500 : 3200);
+}
+const ids = () => sel.size ? [...sel] : null;
+const allClips = () => V ? V.tracks.flatMap(t => t.clips) : [];
+const clipById = id => allClips().find(c => c.id === id);
+const frame = () => 1e6 / (V ? V.fps : 30);
+const snapFrame = t => Math.round(Math.round(t / frame()) * frame());
+
+// ------------------------------------------------------------ view
+function setView(v) {
+  const first = !V || V.path !== v.path || V.doc !== v.doc;
+  V = v;
+  const live = new Set(allClips().map(c => c.id));
+  sel = new Set([...sel].filter(i => live.has(i)));
+  if (first) { playhead = 0; sel.clear(); fitZoom(); loadFonts(); }
+  render();
+}
+function render() {
+  renderHeader(); renderTimeline(); renderPanels(); drawPreview();
+}
+function renderHeader() {
+  const has = !!V;
+  for (const b of ["b-save", "b-restore", "b-reload"]) $(b).disabled = !has;
+  $("b-undo").disabled = !has || !V.can_undo;
+  $("b-redo").disabled = !has || !V.can_redo;
+  const s = $("status");
+  s.textContent = has ? V.project + (V.dirty ? " — unsaved changes" : " — saved") : "No project open";
+  s.className = has && V.dirty ? "dirty" : "";
+  document.title = (has ? (V.dirty ? "• " : "") + V.project + " – " : "") + "CapCut Word Layers";
+  const d = $("docsel");
+  d.hidden = !has || V.docs.length < 2;
+  if (has) { d.innerHTML = ""; V.docs.forEach((n, i) => d.add(new Option(n, i, false, i === V.doc))); }
+}
+
+// ------------------------------------------------------------ timeline
+const tx = t => t / 1e6 * pps;
+const xt = x => x / pps * 1e6;
+function groupColor(g) { let h = 0; for (const ch of g) h = (h * 31 + ch.charCodeAt(0)) % 360; return `hsl(${h} 80% 62%)`; }
+function renderTimeline() {
+  const tracksEl = $("tracks"); tracksEl.innerHTML = "";
+  if (!V) { $("ruler").innerHTML = ""; return; }
+  const width = GUT + tx(V.duration + 2e6) + 300;
+  $("inner").style.width = width + "px";
+  // ruler
+  const steps = [1/30, 1/15, 0.1, 0.2, 0.5, 1, 2, 5, 10, 30, 60, 120, 300];
+  const step = steps.find(s => s * pps >= 64) || 600;
+  let html = "";
+  for (let s = 0; s * pps < width; s += step) {
+    const label = step >= 1 ? `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, "0")}` : s.toFixed(2) + "s";
+    html += `<span style="left:${GUT + s * pps}px">${label}</span>`;
+  }
+  $("ruler").innerHTML = html;
+  // tracks, top of the list = top layer, like CapCut
+  [...V.tracks].reverse().forEach(t => {
+    const row = document.createElement("div");
+    row.className = "track"; row.dataset.id = t.id;
+    row.innerHTML = `<div class="th">TI</div>`;
+    for (const c of t.clips) {
+      const el = document.createElement("div");
+      el.className = "clip" + (sel.has(c.id) ? " sel" : "") + (c.locked ? " locked" : "");
+      el.dataset.id = c.id;
+      el.style.left = GUT + tx(c.start) + "px";
+      el.style.width = Math.max(4, tx(c.dur) - 1) + "px";
+      el.title = c.text + (c.locked ? " (locked)" : "");
+      const lab = document.createElement("span"); lab.className = "lab"; lab.textContent = c.text;
+      el.append(lab);
+      if (c.group) { const g = document.createElement("i"); g.className = "gdot"; g.style.background = groupColor(c.group); el.append(g); }
+      el.insertAdjacentHTML("beforeend", `<i class="hl"></i><i class="hr"></i>`);
+      row.append(el);
+    }
+    tracksEl.append(row);
+  });
+  placePlayhead();
+  const n = sel.size, locked = [...sel].filter(i => clipById(i)?.locked).length;
+  $("selinfo").textContent = n ? `${n} selected${locked ? `, ${locked} locked` : ""}` : `${allClips().length} text clips`;
+}
+function placePlayhead() {
+  $("playhead").style.left = GUT + tx(playhead) + "px";
+  if (V) $("time").textContent = (playhead / 1e6).toFixed(2) + "s / " + (V.duration / 1e6).toFixed(2) + "s";
+}
+function setPlayhead(t) {
+  playhead = Math.max(0, Math.min(V ? V.duration : 0, t));
+  placePlayhead(); drawPreview();
+}
+function fitZoom() {
+  if (!V) return;
+  pps = Math.max(20, Math.min(2000, ($("tl").clientWidth - GUT - 40) / Math.max(1, V.duration / 1e6)));
+}
+function zoom(f, anchorX) {
+  const tl = $("tl"), ax = anchorX ?? tl.clientWidth / 2;
+  const t = xt(tl.scrollLeft + ax - GUT);
+  pps = Math.max(10, Math.min(4000, pps * f));
+  renderTimeline();
+  tl.scrollLeft = GUT + tx(t) - ax;
+}
+function innerX(e) { return e.clientX - $("inner").getBoundingClientRect().left - GUT; }
+
+// drag clips: move, trim, change track
+$("tracks").addEventListener("pointerdown", e => {
+  if (!V || e.button !== 0) return;
+  const el = e.target.closest(".clip");
+  if (!el) return startMarquee(e);
+  const c = clipById(el.dataset.id);
+  if (e.ctrlKey || e.shiftKey || e.metaKey) { sel.has(c.id) ? sel.delete(c.id) : sel.add(c.id); render(); return; }
+  if (!sel.has(c.id)) { sel = new Set([c.id]); render(); }
+  const live = document.querySelector(`.clip[data-id="${c.id}"]`);
+  const mode = e.target.classList.contains("hl") ? "l" : e.target.classList.contains("hr") ? "r" : "move";
+  const x0 = e.clientX, y0 = e.clientY;
+  let moved = false, start = c.start, dur = c.dur, target = null;
+  const edges = allClips().filter(o => o.id !== c.id).flatMap(o => [o.start, o.start + o.dur]).concat([0, playhead]);
+  const snap = t => { let best = snapFrame(t), d = 8 / pps * 1e6; for (const s of edges) if (Math.abs(s - t) < d) { d = Math.abs(s - t); best = s; } return best; };
+  const move = ev => {
+    const dx = ev.clientX - x0;
+    if (!moved && Math.hypot(dx, ev.clientY - y0) < 4) return;
+    moved = true; document.body.classList.add("dragging");
+    const dt = xt(dx), end = c.start + c.dur;
+    if (mode === "move") {
+      start = snap(c.start + dt);
+      const e2 = snap(c.start + dt + c.dur);           // let the right edge snap too
+      if (Math.abs(e2 - (c.start + dt + c.dur)) < Math.abs(start - (c.start + dt))) start = e2 - c.dur;
+      start = Math.max(0, start);
+      document.querySelectorAll(".track.hot,#newrow.hot").forEach(n => n.classList.remove("hot"));
+      target = null;
+      const nr = $("newrow").getBoundingClientRect();
+      if (ev.clientY < nr.bottom) { target = "new"; $("newrow").classList.add("hot"); }
+      else for (const row of document.querySelectorAll(".track")) {
+        const r = row.getBoundingClientRect();
+        if (ev.clientY >= r.top && ev.clientY < r.bottom) { target = row.dataset.id; row.classList.add("hot"); }
+      }
+    } else if (mode === "l") {
+      start = Math.max(0, Math.min(end - frame(), snap(c.start + dt))); dur = end - start;
+    } else {
+      dur = Math.max(frame(), snap(end + dt) - c.start);
+    }
+    live.style.left = GUT + tx(start) + "px";
+    live.style.width = Math.max(4, tx(dur) - 1) + "px";
+  };
+  const up = async () => {
+    window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", up);
+    document.body.classList.remove("dragging");
+    if (!moved) { sel = new Set([c.id]); return render(); }
+    const r = await api("set_time", {id: c.id, start: Math.round(start), dur: Math.round(dur), track: target});
+    if (!r.ok) render();
+  };
+  window.addEventListener("pointermove", move); window.addEventListener("pointerup", up);
+});
+// drag on empty timeline: box select. A plain click moves the playhead.
+function startMarquee(e) {
+  const inner = $("inner"), m = $("marquee"), r0 = inner.getBoundingClientRect();
+  const x0 = e.clientX - r0.left, y0 = e.clientY - r0.top;
+  let moved = false;
+  const move = ev => {
+    const r = inner.getBoundingClientRect(), x = ev.clientX - r.left, y = ev.clientY - r.top;
+    if (!moved && Math.hypot(x - x0, y - y0) < 4) return;
+    moved = true;
+    Object.assign(m.style, {display: "block", left: Math.min(x, x0) + "px", top: Math.min(y, y0) + "px",
+                            width: Math.abs(x - x0) + "px", height: Math.abs(y - y0) + "px"});
+  };
+  const up = ev => {
+    window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", up);
+    if (!moved) { sel.clear(); setPlayhead(snapFrame(xt(innerX(ev)))); return render(); }
+    const box = m.getBoundingClientRect(); m.style.display = "none";
+    if (!(ev.ctrlKey || ev.shiftKey)) sel.clear();
+    document.querySelectorAll(".clip").forEach(el => {
+      const r = el.getBoundingClientRect();
+      if (r.left < box.right && r.right > box.left && r.top < box.bottom && r.bottom > box.top) sel.add(el.dataset.id);
+    });
+    render();
+  };
+  window.addEventListener("pointermove", move); window.addEventListener("pointerup", up);
+}
+$("ruler").addEventListener("pointerdown", e => {
+  if (!V) return;
+  const go = ev => setPlayhead(snapFrame(xt(innerX(ev))));
+  go(e);
+  const up = () => { window.removeEventListener("pointermove", go); window.removeEventListener("pointerup", up); };
+  window.addEventListener("pointermove", go); window.addEventListener("pointerup", up);
+});
+$("tl").addEventListener("wheel", e => {
+  if (!e.ctrlKey) return;
+  e.preventDefault();
+  zoom(e.deltaY < 0 ? 1.2 : 1 / 1.2, e.clientX - $("tl").getBoundingClientRect().left);
+}, {passive: false});
+
+// ------------------------------------------------------------ preview
+function fontFamily(path) {
+  if (!path) return "sans-serif";
+  if (fontFaces.has(path)) return fontFaces.get(path) || "sans-serif";
+  fontFaces.set(path, null);
+  const fam = "wl" + fontFaces.size;
+  new FontFace(fam, `url(/font?t=${TOKEN}&p=${encodeURIComponent(path)})`).load()
+    .then(f => { document.fonts.add(f); fontFaces.set(path, fam); drawPreview(); })
+    .catch(() => {});
+  return "sans-serif";
+}
+let hits = [];
+function drawPreview() {
+  const cv = $("preview"), stage = $("stage");
+  const cw = V ? V.canvas.w : 1920, ch = V ? V.canvas.h : 1080;
+  const availW = stage.clientWidth - 28, availH = stage.clientHeight - 28;
+  const k = Math.min(availW / cw, availH / ch);
+  const W = Math.max(50, Math.floor(cw * k)), H = Math.max(50, Math.floor(ch * k)), dpr = window.devicePixelRatio || 1;
+  if (cv.width !== W * dpr || cv.height !== H * dpr) { cv.width = W * dpr; cv.height = H * dpr; cv.style.width = W + "px"; cv.style.height = H + "px"; }
+  const g = cv.getContext("2d");
+  g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  g.fillStyle = "#000"; g.fillRect(0, 0, W, H);
+  g.strokeStyle = "rgba(255,255,255,.07)"; g.lineWidth = 1;
+  g.beginPath(); g.moveTo(W / 2, 0); g.lineTo(W / 2, H); g.moveTo(0, H / 2); g.lineTo(W, H / 2); g.stroke();
+  hits = [];
+  if (!V) return;
+  for (const t of V.tracks) for (const c of t.clips) {
+    if (!(c.start <= playhead && playhead < c.start + c.dur)) continue;
+    const st = c.style, on = sel.has(c.id);
+    const px = st.size * V.settings.preview_scale * Math.min(cw, ch) / 1080 * c.scale * k;
+    const off = on && dragOff ? dragOff : {dx: 0, dy: 0};
+    const x = W / 2 + (c.x + off.dx) * W / 2, y = H / 2 - (c.y + off.dy) * H / 2;
+    const lines = c.text.split("\n"), lh = px * 1.2;
+    g.save(); g.translate(x, y); g.rotate(-c.rot * Math.PI / 180);
+    g.font = `${px}px "${fontFamily(st.font)}", "Segoe UI", sans-serif`;
+    g.textAlign = "center"; g.textBaseline = "middle"; g.lineJoin = "round";
+    const width = Math.max(...lines.map(l => g.measureText(l).width));
+    const setShadow = () => {
+      if (!st.shadow.on) return;
+      const a = st.shadow.angle * Math.PI / 180, d = st.shadow.distance / 100 * px * 2;
+      g.shadowColor = st.shadow.color + Math.round(st.shadow.alpha / 100 * 255).toString(16).padStart(2, "0");
+      g.shadowBlur = st.shadow.blur / 100 * px * 0.5 * dpr;
+      g.shadowOffsetX = Math.cos(a) * d * dpr; g.shadowOffsetY = -Math.sin(a) * d * dpr;
+    };
+    if (st.background.on) {
+      const pw = width + px * 0.5, ph = lh * lines.length + px * 0.25;
+      g.globalAlpha = st.background.alpha / 100; g.fillStyle = st.background.color;
+      g.beginPath(); g.roundRect(-pw / 2, -ph / 2, pw, ph, st.background.radius / 100 * ph / 2); g.fill();
+      g.globalAlpha = 1;
+    }
+    if (st.glow.on) {
+      g.save();
+      g.shadowColor = st.glow.color; g.shadowBlur = (0.1 + st.glow.range / 100 * 1.5) * px * dpr;
+      g.globalAlpha = Math.min(1, 0.3 + st.glow.strength / 100); g.fillStyle = st.glow.color;
+      for (let pass = 0; pass < 2; pass++) lines.forEach((l2, j) => g.fillText(l2, 0, (j - (lines.length - 1) / 2) * lh));
+      g.restore();
+    }
+    lines.forEach((l, i) => {
+      const ly = (i - (lines.length - 1) / 2) * lh;
+      if (st.stroke.on && st.stroke.width > 0) {
+        setShadow();
+        g.strokeStyle = st.stroke.color; g.lineWidth = st.stroke.width / 100 * 0.2 * px * 2;
+        g.strokeText(l, 0, ly);
+        g.shadowColor = "transparent";
+      } else setShadow();
+      g.fillStyle = st.color; g.fillText(l, 0, ly);
+      g.shadowColor = "transparent";
+    });
+    const bw = width + px * 0.4, bh = lh * lines.length + px * 0.1;
+    if (on) {
+      g.strokeStyle = c.locked ? "#f0c66b" : "#27c4d2"; g.lineWidth = 1.5; g.setLineDash([5, 4]);
+      g.strokeRect(-bw / 2, -bh / 2, bw, bh);
+    }
+    g.restore();
+    hits.push({id: c.id, x: x - bw / 2, y: y - bh / 2, w: bw, h: bh});
+  }
+}
+$("preview").addEventListener("pointerdown", e => {
+  if (!V) return;
+  const r = $("preview").getBoundingClientRect(), mx = e.clientX - r.left, my = e.clientY - r.top;
+  const hit = [...hits].reverse().find(h => mx >= h.x && mx <= h.x + h.w && my >= h.y && my <= h.y + h.h);
+  if (!hit) { sel.clear(); return render(); }
+  if (e.ctrlKey || e.shiftKey) { sel.has(hit.id) ? sel.delete(hit.id) : sel.add(hit.id); return render(); }
+  if (!sel.has(hit.id)) { sel = new Set([hit.id]); render(); }
+  const x0 = e.clientX, y0 = e.clientY;
+  const move = ev => {
+    dragOff = {dx: (ev.clientX - x0) / (r.width / 2), dy: -(ev.clientY - y0) / (r.height / 2)};
+    if (ev.shiftKey) Math.abs(dragOff.dx * r.width) > Math.abs(dragOff.dy * r.height) ? dragOff.dy = 0 : dragOff.dx = 0;
+    drawPreview();
+  };
+  const up = async () => {
+    window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", up);
+    const d = dragOff; dragOff = null;
+    if (d && (Math.abs(d.dx) > 1e-4 || Math.abs(d.dy) > 1e-4)) await api("nudge_pos", {ids: [...sel], dx: d.dx, dy: d.dy});
+    else drawPreview();
+  };
+  window.addEventListener("pointermove", move); window.addEventListener("pointerup", up);
+});
+new ResizeObserver(() => drawPreview()).observe($("stage"));
+
+// ------------------------------------------------------------ side panels
+const active = () => document.activeElement;
+function setVal(id, v) { const el = $(id); if (active() !== el) el.type === "checkbox" ? el.checked = !!v : el.value = v; }
+function renderPanels() {
+  const has = !!V;
+  document.querySelectorAll("aside button[data-act]").forEach(b => b.disabled = !has);
+  if (!has) return;
+  const s = V.settings;
+  setVal("s-short", s.short_max); setVal("s-max", s.group_max); setVal("s-auto", s.auto_offset);
+  setVal("s-gap", s.gap); setVal("s-shift", s.shift_x); setVal("s-scale", s.preview_scale);
+  $("o-gap").textContent = (+s.gap).toFixed(2); $("o-shift").textContent = (+s.shift_x).toFixed(2);
+  $("s-gap").disabled = $("s-shift").disabled = !s.auto_offset;
+  const first = sel.size ? clipById([...sel][0]) : null;
+  $("st").disabled = !first;
+  $("st-n").textContent = first ? `· ${sel.size} clip${sel.size > 1 ? "s" : ""}` : "· select clips first";
+  document.querySelector('[data-act="copy_style"]').disabled = sel.size !== 1;
+  document.querySelector('[data-act="paste_style"]').disabled = !V.has_clipboard;
+  if (first) {
+    const st = first.style;
+    fillFonts(st.font);
+    setVal("st-size", st.size); setVal("st-color", st.color.toLowerCase());
+    setVal("st-stroke", st.stroke.on); setVal("st-scolor", st.stroke.color.toLowerCase()); setVal("st-swidth", st.stroke.width);
+    setVal("st-shadow", st.shadow.on); setVal("st-hcolor", st.shadow.color.toLowerCase());
+    setVal("st-halpha", st.shadow.alpha); setVal("st-hblur", st.shadow.blur); setVal("st-hdist", st.shadow.distance); setVal("st-hangle", st.shadow.angle);
+    setVal("st-glow", st.glow.on); setVal("st-gcolor", st.glow.color.toLowerCase()); setVal("st-gstr", st.glow.strength); setVal("st-grange", st.glow.range);
+    setVal("st-bg", st.background.on); setVal("st-bcolor", st.background.color.toLowerCase()); setVal("st-balpha", st.background.alpha); setVal("st-bradius", st.background.radius);
+    setVal("st-curve", st.curve.on); setVal("st-cangle", st.curve.angle);
+    for (const k of ["swidth", "halpha", "hblur", "hdist", "hangle", "gstr", "grange", "balpha", "bradius", "cangle"]) $("o-" + k).textContent = Math.round($("st-" + k).value);
+    $("sub-stroke").classList.toggle("off", !st.stroke.on); $("sub-shadow").classList.toggle("off", !st.shadow.on);
+    $("sub-glow").classList.toggle("off", !st.glow.on); $("sub-bg").classList.toggle("off", !st.background.on); $("sub-curve").classList.toggle("off", !st.curve.on);
+    $("glow-name").textContent = st.glow.on ? st.glow.name : V.glow_ready ? "" : "needs one example from CapCut";
+    $("st-extra").hidden = !st.extra.length;
+  }
+  const one = sel.size === 1 ? first : null;
+  $("one").disabled = !first;
+  $("c-text").disabled = !one;
+  setVal("c-text", one ? one.text : ""); setVal("c-x", first ? +first.x.toFixed(3) : ""); setVal("c-y", first ? +first.y.toFixed(3) : "");
+  $("c-info").textContent = one ? `${(one.start / 1e6).toFixed(2)}s to ${((one.start + one.dur) / 1e6).toFixed(2)}s` +
+      (one.locked ? " · locked" : "") + (one.group ? " · in a layered group" : "")
+    : first ? "Position shows the first selected clip. Changing it moves all selected clips by the same amount." : "Select a clip.";
+}
+function fillFonts(current) {
+  const s = $("st-font");
+  if (active() === s) return;
+  const list = fontList.slice();
+  if (current && !list.some(f => f.path === current)) list.unshift({path: current, name: current.split("/").pop()});
+  const key = list.length + "|" + current;
+  if (s.dataset.key === key) return;
+  s.dataset.key = key; s.innerHTML = "";
+  for (const f of list) s.add(new Option(f.name, f.path, false, f.path === current));
+}
+async function loadFonts() {
+  const r = await api("fonts", {}, true);
+  if (r.ok) { fontList = r.fonts; renderPanels(); }
+}
+// settings
+let setTimer = null;
+function pushSettings() {
+  clearTimeout(setTimer);
+  setTimer = setTimeout(() => api("settings", {patch: {
+    short_max: +$("s-short").value || 4, group_max: +$("s-max").value || 4, auto_offset: $("s-auto").checked,
+    gap: +$("s-gap").value, shift_x: +$("s-shift").value, preview_scale: +$("s-scale").value || 5.3}}), 90);
+  $("o-gap").textContent = (+$("s-gap").value).toFixed(2); $("o-shift").textContent = (+$("s-shift").value).toFixed(2);
+}
+for (const id of ["s-short", "s-max", "s-auto", "s-gap", "s-shift", "s-scale"]) $(id).addEventListener("input", pushSettings);
+// style
+let styleTimer = null;
+function pushStyle(patch) {
+  clearTimeout(styleTimer);
+  const target = [...sel];
+  styleTimer = setTimeout(() => api("style", {ids: target, patch, coalesce: "style:" + Object.keys(patch)}), 90);
+}
+const strokeNow = () => ({on: $("st-stroke").checked, color: $("st-scolor").value, width: +$("st-swidth").value});
+const shadowNow = () => ({on: $("st-shadow").checked, color: $("st-hcolor").value, alpha: +$("st-halpha").value,
+                          blur: +$("st-hblur").value, distance: +$("st-hdist").value, angle: +$("st-hangle").value});
+for (const id of ["st-glow", "st-gcolor", "st-gstr", "st-grange"]) $(id).addEventListener("input", () => pushStyle(
+  {glow: {on: $("st-glow").checked, color: $("st-gcolor").value, strength: +$("st-gstr").value, range: +$("st-grange").value}}));
+for (const id of ["st-bg", "st-bcolor", "st-balpha", "st-bradius"]) $(id).addEventListener("input", () => pushStyle(
+  {background: {on: $("st-bg").checked, color: $("st-bcolor").value, alpha: +$("st-balpha").value, radius: +$("st-bradius").value}}));
+for (const id of ["st-curve", "st-cangle"]) $(id).addEventListener("input", () => pushStyle(
+  {curve: {on: $("st-curve").checked, angle: +$("st-cangle").value}}));
+$("st-font").addEventListener("change", () => pushStyle({font: $("st-font").value}));
+$("st-size").addEventListener("input", () => { if (+$("st-size").value > 0) pushStyle({size: +$("st-size").value}); });
+$("st-color").addEventListener("input", () => pushStyle({color: $("st-color").value}));
+for (const id of ["st-stroke", "st-scolor", "st-swidth"]) $(id).addEventListener("input", () => pushStyle({stroke: strokeNow()}));
+for (const id of ["st-shadow", "st-hcolor", "st-halpha", "st-hblur", "st-hdist", "st-hangle"]) $(id).addEventListener("input", () => pushStyle({shadow: shadowNow()}));
+// selected clip
+$("c-text").addEventListener("change", () => { if (sel.size === 1) api("set_text", {id: [...sel][0], text: $("c-text").value}); });
+for (const [id, axis] of [["c-x", "x"], ["c-y", "y"]]) $(id).addEventListener("change", () => {
+  const first = clipById([...sel][0]); if (!first) return;
+  const d = (+$(id).value || 0) - first[axis];
+  api("nudge_pos", {ids: [...sel], dx: axis === "x" ? d : 0, dy: axis === "y" ? d : 0});
+});
+
+// ------------------------------------------------------------ actions
+const plural = (n, w) => `${n} ${w}${n === 1 ? "" : "s"}`;
+async function act(name) {
+  if (!V) return;
+  if (name === "split") {
+    const r = await api("split", {ids: ids()});
+    if (r.ok) { if (r.result.count) { if (sel.size) sel = new Set(r.result.ids); render(); toast(`Split ${plural(r.result.count, "clip")} into words.`, "ok"); } else toast("Nothing to split. Clips need more than one word and must not be locked."); }
+  } else if (name === "layer") {
+    const r = await api("layer", {ids: ids()});
+    if (r.ok) toast(r.result.count ? `Made ${plural(r.result.count, "group")}.` : "No runs of short words found. Split clips into words first (S), or raise the short-word limit.", r.result.count ? "ok" : "");
+  } else if (name === "unlayer") {
+    const r = await api("unlayer", {ids: ids()});
+    if (r.ok) toast(r.result.count ? `Unlayered ${plural(r.result.count, "group")}.` : "No layered groups here.", r.result.count ? "ok" : "");
+  } else if (name === "lock") {
+    if (!sel.size) return toast("Select the clips to lock first.");
+    const r = await api("lock", {ids: [...sel]});
+    if (r.ok) toast(`${r.result.locked ? "Locked" : "Unlocked"} ${plural(r.result.count, "clip")}.`, "ok");
+  } else if (name === "delete") {
+    if (sel.size) api("delete", {ids: [...sel]});
+  } else if (name === "copy_style") {
+    if (sel.size !== 1) return toast("Select one clip to copy its style.");
+    const r = await api("copy_style", {id: [...sel][0]});
+    if (r.ok) toast("Style copied.", "ok");
+  } else if (name === "paste_style") {
+    if (!sel.size) return toast("Select the clips to paste the style onto.");
+    const r = await api("paste_style", {ids: [...sel]});
+    if (r.ok) toast(`Style pasted onto ${plural(r.result.count, "clip")}.`, "ok");
+  }
+}
+document.querySelectorAll("[data-act]").forEach(b => b.addEventListener("click", () => act(b.dataset.act)));
+async function save(force = false, open_ok = false) {
+  if (!V) return;
+  const r = await api("save", {force, open_ok}, true);
+  if (r.ok) return toast(`Saved. A backup of the old files is in ${r.result.backup}. Open the project in CapCut to see the result.`, "ok");
+  const err = r.error || "";
+  if (err.startsWith("CAPCUT:")) {
+    if (confirm("CapCut is running.\n\nIf this project is open in CapCut's editor, CapCut will not show these changes and will overwrite them the next time it saves. Go back to CapCut's home screen first.\n\nSave now?")) save(force, true);
+  } else if (err.startsWith("CHANGED:")) {
+    if (confirm("The project files changed since you opened them here (for example, CapCut saved them).\n\nSave anyway and replace those changes? A backup is made first.")) save(true, open_ok);
+  } else if (err) toast(err, "err");
+}
+$("b-save").onclick = () => save();
+$("b-undo").onclick = () => api("undo");
+$("b-redo").onclick = () => api("redo");
+$("b-reload").onclick = () => { if (!V.dirty || confirm("Throw away unsaved changes and read the project again?")) api("reload"); };
+$("b-restore").onclick = async () => {
+  if (!confirm("Put back the files from before the last save? Unsaved changes here are lost.")) return;
+  const r = await api("restore");
+  if (r.ok) toast(`Restored backup ${r.result.backup}.`, "ok");
+};
+$("docsel").onchange = () => {
+  if (V.dirty && !confirm("Throw away unsaved changes?")) return renderHeader();
+  api("open", {path: V.path, doc: +$("docsel").value});
+};
+$("z-in").onclick = () => zoom(1.4); $("z-out").onclick = () => zoom(1 / 1.4);
+$("z-fit").onclick = () => { fitZoom(); renderTimeline(); $("tl").scrollLeft = 0; };
+
+// playback
+let lastTick = 0;
+function togglePlay() {
+  if (!V) return;
+  playing = !playing; $("b-play").textContent = playing ? "Pause" : "Play";
+  if (playing) { if (playhead >= V.duration) playhead = 0; lastTick = performance.now(); requestAnimationFrame(tick); }
+}
+function tick(now) {
+  if (!playing) return;
+  playhead += (now - lastTick) * 1000; lastTick = now;
+  if (playhead >= V.duration) { playhead = V.duration; playing = false; $("b-play").textContent = "Play"; }
+  placePlayhead(); drawPreview();
+  const tl = $("tl"), x = GUT + tx(playhead);
+  if (x > tl.scrollLeft + tl.clientWidth - 40) tl.scrollLeft = x - 80;
+  if (playing) requestAnimationFrame(tick);
+}
+$("b-play").onclick = togglePlay;
+
+// keyboard
+window.addEventListener("keydown", e => {
+  const typing = /^(INPUT|SELECT|TEXTAREA)$/.test(e.target.tagName) && !["checkbox", "range", "color"].includes(e.target.type);
+  const k = e.key.toLowerCase(), mod = e.ctrlKey || e.metaKey;
+  if (mod && k === "s") { e.preventDefault(); return save(); }
+  if (typing) { if (k === "escape" || k === "enter") e.target.blur(); return; }
+  if (!V || $("picker").classList.contains("on")) return;
+  const stop = () => e.preventDefault();
+  if (mod && e.shiftKey && k === "c") { stop(); return act("copy_style"); }
+  if (mod && e.shiftKey && k === "v") { stop(); return act("paste_style"); }
+  if (mod && k === "z") { stop(); return api(e.shiftKey ? "redo" : "undo"); }
+  if (mod && k === "y") { stop(); return api("redo"); }
+  if (mod && k === "a") { stop(); sel = new Set(allClips().map(c => c.id)); return render(); }
+  if (mod) return;
+  if (k === "s") return act("split");
+  if (k === "g") return act("layer");
+  if (k === "u") return act("unlayer");
+  if (k === "l") return act("lock");
+  if (k === "delete" || k === "backspace") { stop(); return act("delete"); }
+  if (k === "escape") { sel.clear(); return render(); }
+  if (k === " ") { stop(); return togglePlay(); }
+  if (k === "+" || k === "=") return zoom(1.4);
+  if (k === "-") return zoom(1 / 1.4);
+  if (k.startsWith("arrow")) {
+    stop();
+    const big = e.shiftKey ? 5 : 1, dir = {arrowleft: [-1, 0], arrowright: [1, 0], arrowup: [0, 1], arrowdown: [0, -1]}[k];
+    if (e.altKey) { if (sel.size) api("nudge_pos", {ids: [...sel], dx: dir[0] * 0.005 * big * 2, dy: dir[1] * 0.005 * big * 2, coalesce: "nudge"}); }
+    else if (dir[0]) {
+      if (sel.size) api("shift_time", {ids: [...sel], delta: Math.round(dir[0] * big * frame()), coalesce: "shift"});
+      else setPlayhead(snapFrame(playhead + dir[0] * big * frame()));
+    }
+  }
+});
+
+// ------------------------------------------------------------ project picker
+async function showPicker() {
+  const r = await api("boot", {}, true);
+  const list = $("plist"); list.innerHTML = "";
+  for (const p of (r.projects || [])) {
+    const b = document.createElement("button");
+    const name = document.createElement("span"); name.textContent = p.name;
+    const when = document.createElement("small"); when.textContent = new Date(p.mtime * 1000).toLocaleString();
+    b.append(name, when); b.onclick = () => openProject(p.path); list.append(b);
+  }
+  if (!list.children.length) list.innerHTML = `<div class="hint">No projects were found in CapCut's default folder. Paste your project folder path below.</div>`;
+  $("pcancel").hidden = !V;
+  $("picker").classList.add("on");
+}
+async function openProject(path) {
+  if (V && V.dirty && !confirm("Throw away unsaved changes?")) return;
+  const r = await api("open", {path});
+  if (r.ok) $("picker").classList.remove("on");
+}
+$("b-open").onclick = showPicker;
+$("pgo").onclick = () => openProject($("ppath").value);
+$("ppath").addEventListener("keydown", e => { if (e.key === "Enter") openProject($("ppath").value); });
+$("pcancel").onclick = () => $("picker").classList.remove("on");
+
+// keep the app alive while this window is open, and let it stop when closed
+setInterval(() => api("ping", {}, true), 5000);
+window.addEventListener("pagehide", () => navigator.sendBeacon("/bye?t=" + TOKEN));
+window.addEventListener("beforeunload", e => { if (V && V.dirty) { e.preventDefault(); e.returnValue = ""; } });
+
+(async function start() {
+  render();
+  const r = await api("boot", {}, true);
+  if (r.ok && r.view) setView(r.view); else showPicker();
+})();
+</script>
+</body>
+</html>

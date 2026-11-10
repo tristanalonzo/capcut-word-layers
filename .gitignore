@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+wordlayers.log
+_wordlayers_backups/
+_wordlayers_state.json
+draft_content.json
